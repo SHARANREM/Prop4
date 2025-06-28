@@ -154,25 +154,32 @@ def parse_ranges(pages_str):
     return sorted(result)
 
 def convert_image_to_pdf(image_file, orientation):
-    image = Image.open(image_file.stream).convert("RGB")
+    image = Image.open(image_file).convert("RGB")
     width, height = A4
     if orientation == "landscape":
         width, height = height, width
+
     ratio = min(width / image.width, height / image.height)
     new_size = (int(image.width * ratio), int(image.height * ratio))
     image = image.resize(new_size)
+
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=(width, height))
     x = (width - new_size[0]) / 2
     y = (height - new_size[1]) / 2
+
+    # Save image temporarily to disk for ReportLab (it doesn't work directly with PIL)
     temp_img_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}.jpg")
     image.save(temp_img_path)
+
     c.drawImage(temp_img_path, x, y, width=new_size[0], height=new_size[1])
     c.showPage()
     c.save()
+
     os.remove(temp_img_path)
     buffer.seek(0)
     return buffer
+
 
 def do_merge_background(job_id, saved_files):
     writer = PdfWriter()
