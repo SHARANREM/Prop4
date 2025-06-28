@@ -1,0 +1,5 @@
+Flask
+Flask-Cors
+PyMuPDF==1.23.5
+Pillow
+reportlab
