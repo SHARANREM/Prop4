@@ -6,8 +6,9 @@ from PIL import Image
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from io import BytesIO
-
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app)
 UPLOAD_FOLDER = 'uploads'
 MERGED_FOLDER = 'merged'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
