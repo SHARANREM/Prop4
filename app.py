@@ -127,14 +127,21 @@ document.getElementById('uploadForm').addEventListener('submit', async function 
   document.getElementById('statusMessage').innerText = 'Merging files... ⏳';
   document.getElementById('downloadLink').innerHTML = '';
   try {
-    const response = await fetch('/start-merge', { method: 'POST', body: formData });
-    const result = await response.json();
-    const jobId = result.job_id;
-    if (!jobId) throw new Error("No job ID received");
-    pollJobStatus(jobId);
-  } catch (err) {
-    document.getElementById('statusMessage').innerText = '❌ Error: ' + err.message;
+  const response = await fetch('/start-merge', { method: 'POST', body: formData });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Server Error: ${text.slice(0, 100)}...`);
   }
+
+  const result = await response.json();
+  const jobId = result.job_id;
+  if (!jobId) throw new Error("No job ID received");
+  pollJobStatus(jobId);
+} catch (err) {
+  document.getElementById('statusMessage').innerText = '❌ Error: ' + err.message;
+}
+
 });
 
 let lastLogLength = 0;
