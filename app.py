@@ -223,23 +223,33 @@ def do_merge_background(job_id, saved_files):
 @app.route('/start-merge', methods=['POST'])
 def start_merge():
     job_id = str(uuid.uuid4())
-    saved_files = []
-
-    for idx, file in enumerate(request.files.getlist('files')):
-        filename = file.filename.lower()
-        save_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4().hex}_{filename}")
-        file.save(save_path)
-        saved_files.append({
-            "path": save_path,
-            "filename": filename,
-            "orientation": request.form.get(f'orientation_{idx}', 'portrait'),
-            "pages_str": request.form.get(f'pages_{idx}', ''),
-            "password": request.form.get(f'password_{idx}', '')
-        })
-
     merge_jobs[job_id] = {"status": "processing"}
-    Thread(target=do_merge_background, args=(job_id, saved_files)).start()
-    return jsonify({"job_id": job_id})
+
+    try:
+        saved_files = []
+        form_data = request.form.to_dict()
+
+        for idx, file in enumerate(request.files.getlist('files')):
+            ext = os.path.splitext(file.filename)[1]
+            filename = f"{uuid.uuid4().hex}{ext}"
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(file_path)
+
+            saved_files.append({
+                'path': file_path,
+                'filename': file.filename,
+                'orientation': form_data.get(f'orientation_{idx}', 'portrait'),
+                'pages_str': form_data.get(f'pages_{idx}', ''),
+                'password': form_data.get(f'password_{idx}', ''),
+            })
+
+        Thread(target=do_merge_background, args=(job_id, saved_files)).start()
+        return jsonify({"job_id": job_id})
+
+    except Exception as e:
+        merge_jobs[job_id] = {"status": "error", "message": str(e)}
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/status/<job_id>')
 def check_status(job_id):
