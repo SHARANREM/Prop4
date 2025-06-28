@@ -7,7 +7,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from io import BytesIO
 from flask_cors import CORS
-import traceback
+
+
 app = Flask(__name__)
 CORS(app)
 UPLOAD_FOLDER = 'uploads'
@@ -85,21 +86,16 @@ def index():
     """)
 
 def parse_ranges(pages_str):
-    try:
-        if not pages_str:
-            return None
-        result = set()
-        for part in pages_str.split(','):
-            if '-' in part:
-                start, end = map(int, part.split('-'))
-                result.update(range(start - 1, end))
-            else:
-                result.add(int(part) - 1)
-        return sorted(result)
-    except Exception as e:
-        print("❌ Page range parsing error:", e)
+    if not pages_str:
         return None
-
+    result = set()
+    for part in pages_str.split(','):
+        if '-' in part:
+            start, end = map(int, part.split('-'))
+            result.update(range(start - 1, end))
+        else:
+            result.add(int(part) - 1)
+    return sorted(result)
 
 def convert_image_to_pdf(image_file, orientation):
     image = Image.open(image_file.stream).convert("RGB")
@@ -132,12 +128,11 @@ def merge():
     temp_files = []
 
     try:
-        print("📥 Received files:", [f.filename for f in files])
-        print("📋 Received form data:", request.form.to_dict())
         for idx, file in enumerate(files):
             filename = file.filename.lower()
             orientation = request.form.get(f'orientation_{idx}', 'portrait')
             pages_str = request.form.get(f'pages_{idx}', '')
+            password = request.form.get(f'password_{idx}', '')
 
             if filename.endswith('.pdf'):
                 saved_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4().hex}_{filename}")
@@ -145,6 +140,14 @@ def merge():
                 temp_files.append(saved_path)
 
                 reader = PdfReader(saved_path)
+
+                # 🔐 Decrypt if encrypted
+                if reader.is_encrypted:
+                    try:
+                        reader.decrypt(password or '')
+                    except Exception as e:
+                        return jsonify({'error': f"Cannot decrypt {filename}. Provide correct password."}), 400
+
                 selected_pages = parse_ranges(pages_str)
 
                 for i, page in enumerate(reader.pages):
@@ -164,8 +167,6 @@ def merge():
         return send_file(output_path, as_attachment=True)
 
     except Exception as e:
-        print("❌ Merge error:", str(e))
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
     finally:
