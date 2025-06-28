@@ -3,3 +3,4 @@ Flask-Cors
 PyMuPDF==1.22.5
 Pillow
 reportlab
+gunicorn
