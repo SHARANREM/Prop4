@@ -7,6 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from io import BytesIO
 from flask_cors import CORS
+import traceback
 app = Flask(__name__)
 CORS(app)
 UPLOAD_FOLDER = 'uploads'
@@ -84,16 +85,21 @@ def index():
     """)
 
 def parse_ranges(pages_str):
-    if not pages_str:
+    try:
+        if not pages_str:
+            return None
+        result = set()
+        for part in pages_str.split(','):
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                result.update(range(start - 1, end))
+            else:
+                result.add(int(part) - 1)
+        return sorted(result)
+    except Exception as e:
+        print("❌ Page range parsing error:", e)
         return None
-    result = set()
-    for part in pages_str.split(','):
-        if '-' in part:
-            start, end = map(int, part.split('-'))
-            result.update(range(start - 1, end))
-        else:
-            result.add(int(part) - 1)
-    return sorted(result)
+
 
 def convert_image_to_pdf(image_file, orientation):
     image = Image.open(image_file.stream).convert("RGB")
@@ -126,6 +132,8 @@ def merge():
     temp_files = []
 
     try:
+        print("📥 Received files:", [f.filename for f in files])
+        print("📋 Received form data:", request.form.to_dict())
         for idx, file in enumerate(files):
             filename = file.filename.lower()
             orientation = request.form.get(f'orientation_{idx}', 'portrait')
@@ -156,6 +164,8 @@ def merge():
         return send_file(output_path, as_attachment=True)
 
     except Exception as e:
+        print("❌ Merge error:", str(e))
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
     finally:
