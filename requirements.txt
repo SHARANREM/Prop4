@@ -4,3 +4,4 @@ Pillow
 reportlab
 pypdf
 gunicorn
+cryptography>=3.1
